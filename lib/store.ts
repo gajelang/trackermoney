@@ -48,8 +48,10 @@ type TransactionRow = {
   amount_signed: number | string
   occurred_at: number | string
   note: string | null
+  include_in_cashflow: boolean | null
   created_at: number | string
 }
+
 
 function mapUser(row: UserRow): User {
   return {
@@ -101,9 +103,11 @@ function mapTransaction(row: TransactionRow): Transaction {
     amountSigned: toNumber(row.amount_signed),
     occurredAt: toNumber(row.occurred_at),
     note: row.note || undefined,
+    includeInCashflow: row.include_in_cashflow ?? true,
     createdAt: toNumber(row.created_at),
   }
 }
+
 
 export async function initializeUser(): Promise<string | null> {
   if (typeof window === "undefined") return null
@@ -118,7 +122,7 @@ export async function initializeUser(): Promise<string | null> {
     .from("users")
     .upsert({ id: userId, created_at: Date.now() }, { onConflict: "id" })
   if (error) {
-    console.error("Failed to initialize user", error)
+    throw new Error("Failed to initialize user")
   }
 
   return userId
@@ -255,6 +259,7 @@ export async function createTransaction(
     amountSigned,
     occurredAt,
     note,
+    includeInCashflow: true,
     createdAt: Date.now(),
   }
 
@@ -268,6 +273,7 @@ export async function createTransaction(
     amount_signed: transaction.amountSigned,
     occurred_at: transaction.occurredAt,
     note: transaction.note || null,
+    include_in_cashflow: transaction.includeInCashflow,
     created_at: transaction.createdAt,
   })
   if (error) throw error
@@ -305,6 +311,7 @@ export async function createTransfer(
     transferGroupId: group.id,
     occurredAt,
     note,
+    includeInCashflow: true,
     createdAt: Date.now(),
   }
 
@@ -317,6 +324,7 @@ export async function createTransfer(
     transferGroupId: group.id,
     occurredAt,
     note,
+    includeInCashflow: true,
     createdAt: Date.now(),
   }
 
@@ -331,6 +339,7 @@ export async function createTransfer(
       amount_signed: outTx.amountSigned,
       occurred_at: outTx.occurredAt,
       note: outTx.note || null,
+      include_in_cashflow: outTx.includeInCashflow,
       created_at: outTx.createdAt,
     },
     {
@@ -343,6 +352,7 @@ export async function createTransfer(
       amount_signed: inTx.amountSigned,
       occurred_at: inTx.occurredAt,
       note: inTx.note || null,
+      include_in_cashflow: inTx.includeInCashflow,
       created_at: inTx.createdAt,
     },
   ])
@@ -356,6 +366,7 @@ export async function createAdjustment(
   sourceId: string,
   actualBalance: number,
   occurredAt: number,
+  includeInCashflow = false,
 ): Promise<Transaction> {
   const currentBalance = await getMoneySourceBalance(sourceId)
   const delta = actualBalance - currentBalance
@@ -367,6 +378,7 @@ export async function createAdjustment(
     kind: "adjustment",
     amountSigned: delta,
     occurredAt,
+    includeInCashflow,
     createdAt: Date.now(),
   }
 
@@ -380,6 +392,7 @@ export async function createAdjustment(
     amount_signed: transaction.amountSigned,
     occurred_at: transaction.occurredAt,
     note: null,
+    include_in_cashflow: transaction.includeInCashflow,
     created_at: transaction.createdAt,
   })
   if (error) throw error
@@ -407,6 +420,67 @@ export async function getTransactionsByUser(userId: string): Promise<Transaction
   return data.map((row) => mapTransaction(row as TransactionRow))
 }
 
+export function computeSourceStats(sources: MoneySource[], transactions: Transaction[]) {
+  const stats: Record<string, { balance: number; count: number }> = {}
+  for (const source of sources) {
+    stats[source.id] = { balance: source.initialAmount, count: 0 }
+  }
+  for (const tx of transactions) {
+    const entry = stats[tx.sourceId]
+    if (!entry) continue
+    entry.balance += tx.amountSigned
+    entry.count += 1
+  }
+  return stats
+}
+
+export function calculateDashboardTotalsFromData(sources: MoneySource[], transactions: Transaction[]) {
+  const stats = computeSourceStats(sources, transactions)
+  const totalBalance = sources.reduce((acc, s) => acc + (stats[s.id]?.balance ?? 0), 0)
+  const personalBalance = sources
+    .filter((s) => s.ownerType === "personal")
+    .reduce((acc, s) => acc + (stats[s.id]?.balance ?? 0), 0)
+  const companyBalance = sources
+    .filter((s) => s.ownerType === "company")
+    .reduce((acc, s) => acc + (stats[s.id]?.balance ?? 0), 0)
+
+  const thisMonth = new Date()
+  thisMonth.setDate(1)
+  thisMonth.setHours(0, 0, 0, 0)
+  const thisMonthTime = thisMonth.getTime()
+
+  const monthTransactions = transactions.filter((t) => t.occurredAt >= thisMonthTime)
+  const monthIncome = monthTransactions
+    .filter(
+      (t) =>
+        t.includeInCashflow !== false &&
+        (t.kind === "income" || (t.kind === "transfer" && t.amountSigned > 0) || (t.kind === "adjustment" && t.amountSigned > 0)),
+    )
+    .reduce((acc, t) => acc + t.amountSigned, 0)
+  const monthExpense = monthTransactions
+    .filter(
+      (t) =>
+        t.includeInCashflow !== false &&
+        (t.kind === "expense" || (t.kind === "transfer" && t.amountSigned < 0) || (t.kind === "adjustment" && t.amountSigned < 0)),
+    )
+    .reduce((acc, t) => acc - t.amountSigned, 0)
+
+  return {
+    totalBalance,
+    personalBalance,
+    companyBalance,
+    monthIncome,
+    monthExpense,
+    monthNet: monthIncome - monthExpense,
+  }
+}
+
+export async function getSourceStatsByUser(userId: string) {
+  const [sources, transactions] = await Promise.all([getMoneySourcesByUser(userId), getTransactionsByUser(userId)])
+  const stats = computeSourceStats(sources, transactions)
+  return { sources, stats, transactions }
+}
+
 export async function getMoneySourceBalance(sourceId: string): Promise<number> {
   const source = await getMoneySource(sourceId)
   if (!source) return 0
@@ -419,33 +493,6 @@ export async function getMoneySourceBalance(sourceId: string): Promise<number> {
 }
 
 export async function getDashboardTotals(userId: string) {
-  const sources = await getMoneySourcesByUser(userId)
-  const personalSources = sources.filter((s) => s.ownerType === "personal")
-  const companySources = sources.filter((s) => s.ownerType === "company")
-
-  const allTransactions = await getTransactionsByUser(userId)
-  const thisMonth = new Date()
-  thisMonth.setDate(1)
-  thisMonth.setHours(0, 0, 0, 0)
-  const thisMonthTime = thisMonth.getTime()
-
-  const monthTransactions = allTransactions.filter((t) => t.occurredAt >= thisMonthTime)
-  const monthIncome = monthTransactions
-    .filter((t) => t.kind === "income" || (t.kind === "transfer" && t.amountSigned > 0))
-    .reduce((acc, t) => acc + t.amountSigned, 0)
-  const monthExpense = monthTransactions
-    .filter((t) => t.kind === "expense" || (t.kind === "transfer" && t.amountSigned < 0))
-    .reduce((acc, t) => acc - t.amountSigned, 0)
-
-  const balances = await Promise.all(sources.map(async (s) => getMoneySourceBalance(s.id)))
-  const balanceById = new Map(sources.map((s, index) => [s.id, balances[index]]))
-
-  return {
-    totalBalance: sources.reduce((acc, s) => acc + (balanceById.get(s.id) ?? 0), 0),
-    personalBalance: personalSources.reduce((acc, s) => acc + (balanceById.get(s.id) ?? 0), 0),
-    companyBalance: companySources.reduce((acc, s) => acc + (balanceById.get(s.id) ?? 0), 0),
-    monthIncome,
-    monthExpense,
-    monthNet: monthIncome - monthExpense,
-  }
+  const [sources, transactions] = await Promise.all([getMoneySourcesByUser(userId), getTransactionsByUser(userId)])
+  return calculateDashboardTotalsFromData(sources, transactions)
 }

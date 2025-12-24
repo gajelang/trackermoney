@@ -1,12 +1,19 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getMoneySourcesByUser, getMoneySourceBalance, getDashboardTotals, getTransactionsBySource } from "@/lib/store"
+import {
+  getMoneySourcesByUser,
+  calculateDashboardTotalsFromData,
+  computeSourceStats,
+  getTransactionsByUser,
+} from "@/lib/store"
 import { DashboardStats } from "@/components/dashboard-stats"
 import { MoneySourceCard } from "@/components/money-source-card"
 import Link from "next/link"
 import { Plus, ArrowDownUp } from "lucide-react"
 import { useUser } from "@/components/user-provider"
+import { TransactionForm } from "@/components/transaction-form"
+import type { MoneySourceWithBalance } from "@/lib/types"
 
 export default function DashboardPage() {
   const { userId } = useUser()
@@ -18,34 +25,37 @@ export default function DashboardPage() {
     monthExpense: 0,
     monthNet: 0,
   })
-  const [sources, setSources] = useState([])
+  const [sources, setSources] = useState<MoneySourceWithBalance[]>([])
   const [loading, setLoading] = useState(true)
+  const [showTransactionModal, setShowTransactionModal] = useState(false)
+
+  const loadData = async (activeRef?: { active: boolean }) => {
+    if (!userId) return
+    setLoading(true)
+    const [moneySources, transactions] = await Promise.all([
+      getMoneySourcesByUser(userId),
+      getTransactionsByUser(userId),
+    ])
+    const stats = computeSourceStats(moneySources, transactions)
+    const dashboardTotals = calculateDashboardTotalsFromData(moneySources, transactions)
+    if (activeRef && !activeRef.active) return
+    setTotals(dashboardTotals)
+    setSources(
+      moneySources.map((s, index) => ({
+        ...s,
+        currentBalance: stats[s.id]?.balance ?? s.initialAmount,
+        transactionCount: stats[s.id]?.count ?? 0,
+      })),
+    )
+    setLoading(false)
+  }
 
   useEffect(() => {
     if (!userId) return
-    let active = true
-    async function load() {
-      setLoading(true)
-      const moneySources = await getMoneySourcesByUser(userId)
-      const dashboardTotals = await getDashboardTotals(userId)
-      const balances = await Promise.all(moneySources.map((s) => getMoneySourceBalance(s.id)))
-      const transactionCounts = await Promise.all(
-        moneySources.map(async (s) => (await getTransactionsBySource(s.id)).length),
-      )
-      if (!active) return
-      setTotals(dashboardTotals)
-      setSources(
-        moneySources.map((s, index) => ({
-          ...s,
-          currentBalance: balances[index],
-          transactionCount: transactionCounts[index],
-        })),
-      )
-      setLoading(false)
-    }
-    load()
+    const activeRef = { active: true }
+    loadData(activeRef)
     return () => {
-      active = false
+      activeRef.active = false
     }
   }, [userId])
 
@@ -61,12 +71,14 @@ export default function DashboardPage() {
 
         {/* Quick Action Buttons */}
         <div className="flex gap-3 flex-wrap">
-          <Link href="/transactions/new" className="flex-1 min-w-32">
-            <button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 px-4 rounded-2xl flex items-center justify-center gap-2 transition-colors">
-              <Plus className="w-5 h-5" />
-              <span>Add</span>
-            </button>
-          </Link>
+          <button
+            type="button"
+            onClick={() => setShowTransactionModal(true)}
+            className="flex-1 min-w-32 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 px-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Add</span>
+          </button>
           <Link href="/transfers/new" className="flex-1 min-w-32">
             <button className="w-full bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-3 px-4 rounded-2xl flex items-center justify-center gap-2 transition-colors border border-primary/20">
               <ArrowDownUp className="w-5 h-5" />
@@ -111,6 +123,36 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {showTransactionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-card p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Add Transaction</h2>
+                <p className="text-sm text-muted-foreground">Record income or expense.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTransactionModal(false)}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-4">
+              <TransactionForm
+                userId={userId}
+                onSuccess={async () => {
+                  setShowTransactionModal(false)
+                  await loadData()
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

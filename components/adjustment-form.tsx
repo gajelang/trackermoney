@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getMoneySourcesByUser, createAdjustment, getMoneySourceBalance } from "@/lib/store"
-import { formatCurrency } from "@/lib/format"
+import { formatCurrency, formatRupiahInput, parseRupiahInput } from "@/lib/format"
 import type { MoneySource } from "@/lib/types"
 
 interface AdjustmentFormProps {
@@ -21,11 +21,12 @@ export function AdjustmentForm({ userId, onSuccess }: AdjustmentFormProps) {
   const [date, setDate] = useState<string>(new Date().toISOString().split("T")[0])
   const [error, setError] = useState<string>("")
   const [loading, setLoading] = useState(false)
+  const [includeInCashflow, setIncludeInCashflow] = useState(false)
   const [sources, setSources] = useState<MoneySource[]>([])
   const [systemBalance, setSystemBalance] = useState(0)
 
   const selectedSource = sources.find((s) => s.id === sourceId)
-  const delta = actualBalance ? Math.floor(Number.parseFloat(actualBalance)) - systemBalance : 0
+  const delta = actualBalance ? parseRupiahInput(actualBalance) - systemBalance : 0
 
   useEffect(() => {
     let active = true
@@ -67,13 +68,14 @@ export function AdjustmentForm({ userId, onSuccess }: AdjustmentFormProps) {
     setLoading(true)
 
     try {
-      const numBalance = Math.floor(Number.parseFloat(actualBalance))
+      const numBalance = parseRupiahInput(actualBalance)
       const occurredAt = new Date(date).getTime()
-      await createAdjustment(userId, sourceId, numBalance, occurredAt)
+      await createAdjustment(userId, sourceId, numBalance, occurredAt, includeInCashflow)
 
       setActualBalance("")
       setDate(new Date().toISOString().split("T")[0])
       setSourceId("")
+      setIncludeInCashflow(false)
 
       onSuccess?.()
     } catch (err) {
@@ -134,12 +136,12 @@ export function AdjustmentForm({ userId, onSuccess }: AdjustmentFormProps) {
               Actual Balance *
             </label>
             <Input
-              type="number"
+              type="text"
               id="actual"
-              value={actualBalance}
-              onChange={(e) => setActualBalance(e.target.value)}
-              placeholder="Enter actual balance"
-              step="1"
+              inputMode="numeric"
+              value={formatRupiahInput(actualBalance)}
+              onChange={(e) => setActualBalance(e.target.value.replace(/\D/g, ""))}
+              placeholder="Rp 0"
               required
             />
           </div>
@@ -166,6 +168,16 @@ export function AdjustmentForm({ userId, onSuccess }: AdjustmentFormProps) {
             </label>
             <Input type="date" id="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={includeInCashflow}
+              onChange={(e) => setIncludeInCashflow(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Count this adjustment in income/expense
+          </label>
 
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? "Processing..." : "Create Adjustment"}

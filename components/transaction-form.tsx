@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getMoneySourcesByUser, getCategoriesByUser, createTransaction, createDefaultCategories } from "@/lib/store"
 import type { Category, MoneySource } from "@/lib/types"
+import { formatRupiahInput, parseRupiahInput } from "@/lib/format"
 
 interface TransactionFormProps {
   userId: string
@@ -68,7 +69,7 @@ export function TransactionForm({ userId, onSuccess }: TransactionFormProps) {
     setLoading(true)
 
     try {
-      const numAmount = Math.floor(Number.parseFloat(amount))
+      const numAmount = parseRupiahInput(amount)
       if (numAmount <= 0) {
         throw new Error("Amount must be greater than 0")
       }
@@ -170,15 +171,15 @@ export function TransactionForm({ userId, onSuccess }: TransactionFormProps) {
             <label htmlFor="amount" className="block text-sm font-medium mb-1">
               Amount *
             </label>
-            <Input
-              type="number"
-              id="amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0"
-              step="1"
-              required
-            />
+              <Input
+                type="text"
+                id="amount"
+                inputMode="numeric"
+                value={formatRupiahInput(amount)}
+                onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
+                placeholder="Rp 0"
+                required
+              />
           </div>
 
           {/* Date */}

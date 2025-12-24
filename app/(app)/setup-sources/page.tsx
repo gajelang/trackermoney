@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { useUser } from "@/components/user-provider"
+import { formatRupiahInput, parseRupiahInput } from "@/lib/format"
+import type { MoneySource } from "@/lib/types"
 
 export default function SetupSourcesPage() {
   const router = useRouter()
   const { userId } = useUser()
-  const [sources, setSources] = useState([])
+  const [sources, setSources] = useState<MoneySource[]>([])
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState("")
   const [ownerType, setOwnerType] = useState<"personal" | "company">("personal")
@@ -25,10 +27,11 @@ export default function SetupSourcesPage() {
 
   useEffect(() => {
     if (!userId) return
+    const activeUserId = userId
     let active = true
     async function load() {
       setLoading(true)
-      const moneySources = await getMoneySourcesByUser(userId)
+      const moneySources = await getMoneySourcesByUser(activeUserId)
       if (!active) return
       setSources(moneySources)
       setLoading(false)
@@ -51,7 +54,7 @@ export default function SetupSourcesPage() {
     }
 
     try {
-      const amount = Math.floor(Number.parseFloat(initialAmount))
+      const amount = parseRupiahInput(initialAmount)
       if (amount < 0) throw new Error("Amount cannot be negative")
 
       await createMoneySource(userId, name, ownerType, currency, amount)
@@ -148,11 +151,11 @@ export default function SetupSourcesPage() {
               <div>
                 <label className="block text-sm font-medium mb-1">Initial Balance</label>
                 <Input
-                  type="number"
-                  value={initialAmount}
-                  onChange={(e) => setInitialAmount(e.target.value)}
-                  placeholder="0"
-                  step="1"
+                  type="text"
+                  inputMode="numeric"
+                  value={formatRupiahInput(initialAmount)}
+                  onChange={(e) => setInitialAmount(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Rp 0"
                   required
                 />
               </div>

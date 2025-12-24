@@ -48,6 +48,7 @@ create table if not exists transactions (
   amount_signed bigint not null,
   occurred_at bigint not null,
   note text,
+  include_in_cashflow boolean not null default true,
   created_at bigint not null
 );
 

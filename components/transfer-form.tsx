@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getMoneySourcesByUser, createTransfer } from "@/lib/store"
 import type { MoneySource } from "@/lib/types"
+import { formatRupiahInput, parseRupiahInput } from "@/lib/format"
 
 interface TransferFormProps {
   userId: string
@@ -53,7 +54,7 @@ export function TransferForm({ userId, onSuccess }: TransferFormProps) {
     setLoading(true)
 
     try {
-      const numAmount = Math.floor(Number.parseFloat(amount))
+      const numAmount = parseRupiahInput(amount)
       if (numAmount <= 0) {
         throw new Error("Amount must be greater than 0")
       }
@@ -142,12 +143,12 @@ export function TransferForm({ userId, onSuccess }: TransferFormProps) {
               Amount *
             </label>
             <Input
-              type="number"
+              type="text"
               id="amount"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0"
-              step="1"
+              inputMode="numeric"
+              value={formatRupiahInput(amount)}
+              onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))}
+              placeholder="Rp 0"
               required
             />
           </div>

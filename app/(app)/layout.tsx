@@ -7,10 +7,22 @@ import { usePathname } from "next/navigation"
 import { UserProvider, useUser } from "@/components/user-provider"
 
 function UserGate({ children }: { children: React.ReactNode }) {
-  const { loading } = useUser()
+  const { loading, error } = useUser()
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="max-w-md rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center">
+          <div className="text-lg font-semibold text-destructive">Failed to initialize</div>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          <p className="mt-3 text-xs text-muted-foreground">Check Supabase tables and env vars.</p>
+        </div>
+      </div>
+    )
   }
 
   return <>{children}</>

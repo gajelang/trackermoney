@@ -32,11 +32,12 @@ begin
   values (transfer_group_id, demo_user_id, extract(epoch from now())::bigint * 1000)
   on conflict (id) do nothing;
 
-  insert into transactions (id, user_id, source_id, category_id, transfer_group_id, kind, amount_signed, occurred_at, note, created_at)
+  insert into transactions (id, user_id, source_id, category_id, transfer_group_id, kind, amount_signed, occurred_at, note, include_in_cashflow, created_at)
   values
-    ('77777777-7777-7777-7777-777777777777', demo_user_id, personal_source_id, food_category_id, null, 'expense', -50000, extract(epoch from now())::bigint * 1000, 'Lunch', extract(epoch from now())::bigint * 1000),
-    ('88888888-8888-8888-8888-888888888888', demo_user_id, company_source_id, salary_category_id, null, 'income', 2000000, extract(epoch from now())::bigint * 1000, 'Monthly income', extract(epoch from now())::bigint * 1000),
-    ('99999999-9999-9999-9999-999999999999', demo_user_id, personal_source_id, null, transfer_group_id, 'transfer', -150000, extract(epoch from now())::bigint * 1000, 'Transfer to company', extract(epoch from now())::bigint * 1000),
-    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', demo_user_id, company_source_id, null, transfer_group_id, 'transfer', 150000, extract(epoch from now())::bigint * 1000, 'Transfer from personal', extract(epoch from now())::bigint * 1000)
+    ('77777777-7777-7777-7777-777777777777', demo_user_id, personal_source_id, food_category_id, null, 'expense', -50000, extract(epoch from now())::bigint * 1000, 'Lunch', true, extract(epoch from now())::bigint * 1000),
+    ('88888888-8888-8888-8888-888888888888', demo_user_id, company_source_id, salary_category_id, null, 'income', 2000000, extract(epoch from now())::bigint * 1000, 'Monthly income', true, extract(epoch from now())::bigint * 1000),
+    ('99999999-9999-9999-9999-999999999999', demo_user_id, personal_source_id, null, transfer_group_id, 'transfer', -150000, extract(epoch from now())::bigint * 1000, 'Transfer to company', true, extract(epoch from now())::bigint * 1000),
+    ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', demo_user_id, company_source_id, null, transfer_group_id, 'transfer', 150000, extract(epoch from now())::bigint * 1000, 'Transfer from personal', true, extract(epoch from now())::bigint * 1000)
   on conflict (id) do nothing;
+
 end $$;

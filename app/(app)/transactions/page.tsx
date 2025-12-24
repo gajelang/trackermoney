@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from "react"
 import { getTransactionsByUser, getMoneySourcesByUser, getCategoriesByUser } from "@/lib/store"
 import { TransactionRow } from "@/components/transaction-row"
 import { Input } from "@/components/ui/input"
-import type { TransactionKind, OwnerType } from "@/lib/types"
-import Link from "next/link"
+import type { TransactionKind, OwnerType, Transaction, MoneySource, Category } from "@/lib/types"
 import { Button } from "@/components/ui/button"
 import { useUser } from "@/components/user-provider"
+import { TransactionForm } from "@/components/transaction-form"
 
 export default function TransactionsPage() {
   const { userId } = useUser()
@@ -16,30 +16,33 @@ export default function TransactionsPage() {
   const [searchNote, setSearchNote] = useState("")
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
-  const [allTransactions, setAllTransactions] = useState([])
-  const [moneySources, setMoneySources] = useState([])
-  const [categories, setCategories] = useState([])
+  const [allTransactions, setAllTransactions] = useState<Transaction[]>([])
+  const [moneySources, setMoneySources] = useState<MoneySource[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [showTransactionModal, setShowTransactionModal] = useState(false)
+
+  const loadData = async (activeRef?: { active: boolean }) => {
+    if (!userId) return
+    setLoading(true)
+    const [txs, sources, cats] = await Promise.all([
+      getTransactionsByUser(userId),
+      getMoneySourcesByUser(userId),
+      getCategoriesByUser(userId),
+    ])
+    if (activeRef && !activeRef.active) return
+    setAllTransactions(txs)
+    setMoneySources(sources)
+    setCategories(cats)
+    setLoading(false)
+  }
 
   useEffect(() => {
     if (!userId) return
-    let active = true
-    async function load() {
-      setLoading(true)
-      const [txs, sources, cats] = await Promise.all([
-        getTransactionsByUser(userId),
-        getMoneySourcesByUser(userId),
-        getCategoriesByUser(userId),
-      ])
-      if (!active) return
-      setAllTransactions(txs)
-      setMoneySources(sources)
-      setCategories(cats)
-      setLoading(false)
-    }
-    load()
+    const activeRef = { active: true }
+    loadData(activeRef)
     return () => {
-      active = false
+      activeRef.active = false
     }
   }, [userId])
 
@@ -88,9 +91,9 @@ export default function TransactionsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold">Transactions</h1>
           <p className="text-sm text-muted-foreground mt-2">View and filter all transactions</p>
         </div>
-        <Link href="/transactions/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto">+ Add Transaction</Button>
-        </Link>
+        <Button className="w-full sm:w-auto" onClick={() => setShowTransactionModal(true)}>
+          + Add Transaction
+        </Button>
       </div>
 
       {/* Filters */}
@@ -181,6 +184,36 @@ export default function TransactionsPage() {
           </div>
         )}
       </div>
+
+      {showTransactionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-card p-6 shadow-lg">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold">Add Transaction</h2>
+                <p className="text-sm text-muted-foreground">Record income or expense.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTransactionModal(false)}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="mt-4">
+              <TransactionForm
+                userId={userId}
+                onSuccess={async () => {
+                  setShowTransactionModal(false)
+                  await loadData()
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

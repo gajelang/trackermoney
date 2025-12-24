@@ -22,6 +22,7 @@ export default function SourceDetailPage() {
 
   useEffect(() => {
     if (!userId || !id) return
+    const activeUserId = userId
     let active = true
     async function load() {
       setLoading(true)
@@ -29,7 +30,7 @@ export default function SourceDetailPage() {
         getMoneySource(id as string),
         getTransactionsBySource(id as string),
         getMoneySourceBalance(id as string),
-        getCategoriesByUser(userId),
+        getCategoriesByUser(activeUserId),
       ])
       if (!active) return
       setSource(loadedSource)

@@ -43,6 +43,7 @@ export interface Transaction {
   amountSigned: number // positive for income/transfer-in, negative for expense/transfer-out
   occurredAt: number // timestamp
   note?: string
+  includeInCashflow?: boolean
   createdAt: number
 }
 
