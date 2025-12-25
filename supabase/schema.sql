@@ -13,6 +13,7 @@ create table if not exists money_sources (
   name text not null,
   owner_type text not null check (owner_type in ('personal', 'company')),
   currency text not null,
+  color text not null default 'blue',
   initial_amount bigint not null,
   created_at bigint not null
 );

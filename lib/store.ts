@@ -20,6 +20,7 @@ type MoneySourceRow = {
   name: string
   owner_type: "personal" | "company"
   currency: string
+  color: string | null
   initial_amount: number | string
   created_at: number | string
 }
@@ -69,6 +70,7 @@ function mapMoneySource(row: MoneySourceRow): MoneySource {
     name: row.name,
     ownerType: row.owner_type,
     currency: row.currency,
+    color: row.color || "blue",
     initialAmount: toNumber(row.initial_amount),
     createdAt: toNumber(row.created_at),
   }
@@ -140,6 +142,7 @@ export async function createMoneySource(
   ownerType: "personal" | "company",
   currency: string,
   initialAmount: number,
+  color = "blue",
 ): Promise<MoneySource> {
   const source: MoneySource = {
     id: crypto.randomUUID(),
@@ -147,6 +150,7 @@ export async function createMoneySource(
     name,
     ownerType,
     currency,
+    color,
     initialAmount,
     createdAt: Date.now(),
   }
@@ -157,6 +161,7 @@ export async function createMoneySource(
     name: source.name,
     owner_type: source.ownerType,
     currency: source.currency,
+    color: source.color,
     initial_amount: source.initialAmount,
     created_at: source.createdAt,
   })
@@ -182,6 +187,7 @@ export async function updateMoneySource(sourceId: string, updates: Partial<Money
   if (updates.name !== undefined) mapped.name = updates.name
   if (updates.ownerType !== undefined) mapped.owner_type = updates.ownerType
   if (updates.currency !== undefined) mapped.currency = updates.currency
+  if (updates.color !== undefined) mapped.color = updates.color
   if (updates.initialAmount !== undefined) mapped.initial_amount = updates.initialAmount
 
   if (Object.keys(mapped).length === 0) return

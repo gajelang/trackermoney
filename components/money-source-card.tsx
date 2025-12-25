@@ -2,6 +2,7 @@
 
 import { formatCurrency } from "@/lib/format"
 import { Pencil } from "lucide-react"
+import { normalizeSourceColor, sourceGradientClasses } from "@/lib/source-theme"
 import type { MoneySource } from "@/lib/types"
 
 interface MoneySourceCardProps {
@@ -13,10 +14,23 @@ interface MoneySourceCardProps {
 }
 
 export function MoneySourceCard({ source, currentBalance, transactionCount, onClick, onEdit }: MoneySourceCardProps) {
+  const normalizedColor = normalizeSourceColor(source.color)
+  const isHexColor = /^#([0-9a-fA-F]{6})$/.test(normalizedColor)
+  const gradientClass =
+    sourceGradientClasses[(source.color as keyof typeof sourceGradientClasses) || "blue"] || sourceGradientClasses.blue
+  const cardStyle = isHexColor
+    ? {
+        backgroundImage: `linear-gradient(135deg, ${normalizedColor}3d 0%, rgba(15, 23, 42, 0) 55%, rgba(15, 23, 42, 0.85) 100%)`,
+        borderColor: `${normalizedColor}55`,
+      }
+    : undefined
   return (
     <div
       onClick={onClick}
-      className="bg-gradient-to-br from-primary/20 via-card to-card rounded-3xl p-6 cursor-pointer hover:shadow-lg hover:from-primary/30 transition-all border border-primary/20"
+      style={cardStyle}
+      className={`bg-gradient-to-br ${
+        isHexColor ? `border` : gradientClass
+      } rounded-3xl p-6 cursor-pointer hover:shadow-lg transition-all`}
     >
       <div className="flex justify-between items-start mb-8">
         <div>

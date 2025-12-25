@@ -9,6 +9,7 @@ import {
   computeSourceStats,
   getTransactionsByUser,
   createAdjustment,
+  updateMoneySource,
 } from "@/lib/store"
 import { MoneySourceCard } from "@/components/money-source-card"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,7 @@ import Link from "next/link"
 import { useUser } from "@/components/user-provider"
 import { formatRupiahInput, parseRupiahInput } from "@/lib/format"
 import type { MoneySource } from "@/lib/types"
+import { defaultSourceColor, normalizeSourceColor } from "@/lib/source-theme"
 
 export default function SourcesPage() {
   const { userId } = useUser()
@@ -27,11 +29,13 @@ export default function SourcesPage() {
   const [name, setName] = useState("")
   const [ownerType, setOwnerType] = useState<"personal" | "company">("personal")
   const [currency, setCurrency] = useState("IDR")
+  const [color, setColor] = useState(defaultSourceColor)
   const [initialAmount, setInitialAmount] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState("")
+  const [editColor, setEditColor] = useState("blue")
   const [includeInCashflow, setIncludeInCashflow] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [editError, setEditError] = useState("")
@@ -70,8 +74,10 @@ export default function SourcesPage() {
 
   const openEditModal = (sourceId: string) => {
     const currentBalance = sourceStats[sourceId]?.balance ?? 0
+    const source = sources.find((item) => item.id === sourceId)
     setEditingSourceId(sourceId)
     setEditValue(String(currentBalance))
+    setEditColor(normalizeSourceColor(source?.color))
     setIncludeInCashflow(false)
     setEditError("")
   }
@@ -79,6 +85,7 @@ export default function SourcesPage() {
   const closeEditModal = () => {
     setEditingSourceId(null)
     setEditValue("")
+    setEditColor(defaultSourceColor)
     setIncludeInCashflow(false)
     setEditError("")
   }
@@ -94,7 +101,11 @@ export default function SourcesPage() {
       if (Number.isNaN(targetBalance)) {
         throw new Error("Please enter a valid number")
       }
-      await createAdjustment(activeUserId, editingSourceId, targetBalance, Date.now(), includeInCashflow)
+      const currentBalance = sourceStats[editingSourceId]?.balance ?? 0
+      await updateMoneySource(editingSourceId, { color: editColor })
+      if (targetBalance !== currentBalance) {
+        await createAdjustment(activeUserId, editingSourceId, targetBalance, Date.now(), includeInCashflow)
+      }
       const [moneySources, transactions] = await Promise.all([
         getMoneySourcesByUser(activeUserId),
         getTransactionsByUser(activeUserId),
@@ -133,7 +144,7 @@ export default function SourcesPage() {
       const amount = parseRupiahInput(initialAmount)
       if (amount < 0) throw new Error("Amount cannot be negative")
 
-      await createMoneySource(activeUserId, name, ownerType, currency, amount)
+      await createMoneySource(activeUserId, name, ownerType, currency, amount, color)
       const [moneySources, transactions] = await Promise.all([
         getMoneySourcesByUser(activeUserId),
         getTransactionsByUser(activeUserId),
@@ -154,6 +165,7 @@ export default function SourcesPage() {
       setInitialAmount("")
       setOwnerType("personal")
       setCurrency("IDR")
+      setColor(defaultSourceColor)
       setShowForm(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create source")
@@ -211,7 +223,7 @@ export default function SourcesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Type</label>
                   <select
@@ -226,6 +238,15 @@ export default function SourcesPage() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Currency</label>
                   <Input value={currency} onChange={(e) => setCurrency(e.target.value)} maxLength={3} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Color</label>
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background"
+                  />
                 </div>
               </div>
 
@@ -287,6 +308,16 @@ export default function SourcesPage() {
                   value={formatRupiahInput(editValue)}
                   onChange={(e) => setEditValue(e.target.value.replace(/\D/g, ""))}
                   placeholder="Rp 0"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium mb-1 block">Color</label>
+                <input
+                  type="color"
+                  value={editColor}
+                  onChange={(e) => setEditColor(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-background"
                 />
               </div>
 

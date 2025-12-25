@@ -48,7 +48,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="p-4 sm:p-6 max-w-4xl mx-auto">{children}</div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-card border-t border-border">
+      <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-card border-t border-border backdrop-blur-xl">
         <div className="flex items-center justify-around h-20">
           {navItems.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href} className="flex-1">
@@ -67,7 +67,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Desktop Sidebar Navigation */}
-      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex-col">
+      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex-col backdrop-blur-xl">
         <div className="p-6 border-b border-border">
           <h1 className="text-2xl font-bold text-primary">Money Tracker</h1>
           <p className="text-xs text-muted-foreground mt-1">Personal Finance</p>

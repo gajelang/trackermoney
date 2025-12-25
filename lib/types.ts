@@ -15,6 +15,7 @@ export interface MoneySource {
   name: string
   ownerType: OwnerType
   currency: string
+  color?: string
   initialAmount: number // integer in smallest unit
   createdAt: number
 }

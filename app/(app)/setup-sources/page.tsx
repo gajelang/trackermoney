@@ -12,6 +12,7 @@ import Link from "next/link"
 import { useUser } from "@/components/user-provider"
 import { formatRupiahInput, parseRupiahInput } from "@/lib/format"
 import type { MoneySource } from "@/lib/types"
+import { defaultSourceColor } from "@/lib/source-theme"
 
 export default function SetupSourcesPage() {
   const router = useRouter()
@@ -21,6 +22,7 @@ export default function SetupSourcesPage() {
   const [name, setName] = useState("")
   const [ownerType, setOwnerType] = useState<"personal" | "company">("personal")
   const [currency, setCurrency] = useState("IDR")
+  const [color, setColor] = useState(defaultSourceColor)
   const [initialAmount, setInitialAmount] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(true)
@@ -57,13 +59,14 @@ export default function SetupSourcesPage() {
       const amount = parseRupiahInput(initialAmount)
       if (amount < 0) throw new Error("Amount cannot be negative")
 
-      await createMoneySource(userId, name, ownerType, currency, amount)
+      await createMoneySource(userId, name, ownerType, currency, amount, color)
       setSources(await getMoneySourcesByUser(userId))
 
       setName("")
       setInitialAmount("")
       setOwnerType("personal")
       setCurrency("IDR")
+      setColor(defaultSourceColor)
       setShowForm(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create source")
@@ -130,7 +133,7 @@ export default function SetupSourcesPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">Type</label>
                   <select
@@ -145,6 +148,15 @@ export default function SetupSourcesPage() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Currency</label>
                   <Input value={currency} onChange={(e) => setCurrency(e.target.value)} maxLength={3} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Color</label>
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="h-10 w-full rounded-md border border-input bg-background"
+                  />
                 </div>
               </div>
 

@@ -16,6 +16,7 @@ export default function TransactionsPage() {
   const [searchNote, setSearchNote] = useState("")
   const [fromDate, setFromDate] = useState("")
   const [toDate, setToDate] = useState("")
+  const [showFilters, setShowFilters] = useState(false)
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([])
   const [moneySources, setMoneySources] = useState<MoneySource[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -98,68 +99,79 @@ export default function TransactionsPage() {
 
       {/* Filters */}
       <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 border rounded-lg bg-card overflow-x-auto">
-        <h3 className="font-semibold text-sm sm:text-base">Filters</h3>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3">
-          <div>
-            <label className="text-xs sm:text-sm font-medium mb-1 block">Account Type</label>
-            <select
-              value={ownerTypeFilter}
-              onChange={(e) => setOwnerTypeFilter(e.target.value as any)}
-              className="w-full px-2 py-2 border rounded-md bg-background text-xs sm:text-sm"
-            >
-              <option value="all">All Types</option>
-              <option value="personal">Personal</option>
-              <option value="company">Company</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs sm:text-sm font-medium mb-1 block">Transaction Type</label>
-            <select
-              value={kindFilter}
-              onChange={(e) => setKindFilter(e.target.value as any)}
-              className="w-full px-2 py-2 border rounded-md bg-background text-xs sm:text-sm"
-            >
-              <option value="all">All Types</option>
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-              <option value="transfer">Transfer</option>
-              <option value="adjustment">Adjustment</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs sm:text-sm font-medium mb-1 block">From Date</label>
-            <Input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="text-xs sm:text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs sm:text-sm font-medium mb-1 block">To Date</label>
-            <Input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="text-xs sm:text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs sm:text-sm font-medium mb-1 block">Search Note</label>
-            <Input
-              type="text"
-              placeholder="Search..."
-              value={searchNote}
-              onChange={(e) => setSearchNote(e.target.value)}
-              className="text-xs sm:text-sm"
-            />
-          </div>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="font-semibold text-sm sm:text-base">Filters</h3>
+          <button
+            type="button"
+            onClick={() => setShowFilters((prev) => !prev)}
+            className="text-xs sm:text-sm font-medium text-primary hover:underline"
+          >
+            {showFilters ? "Hide" : "Show"}
+          </button>
         </div>
+
+        {showFilters && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2 sm:gap-3">
+            <div>
+              <label className="text-xs sm:text-sm font-medium mb-1 block">Account Type</label>
+              <select
+                value={ownerTypeFilter}
+                onChange={(e) => setOwnerTypeFilter(e.target.value as any)}
+                className="w-full px-2 py-2 border rounded-md bg-background text-xs sm:text-sm"
+              >
+                <option value="all">All Types</option>
+                <option value="personal">Personal</option>
+                <option value="company">Company</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs sm:text-sm font-medium mb-1 block">Transaction Type</label>
+              <select
+                value={kindFilter}
+                onChange={(e) => setKindFilter(e.target.value as any)}
+                className="w-full px-2 py-2 border rounded-md bg-background text-xs sm:text-sm"
+              >
+                <option value="all">All Types</option>
+                <option value="income">Income</option>
+                <option value="expense">Expense</option>
+                <option value="transfer">Transfer</option>
+                <option value="adjustment">Adjustment</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-xs sm:text-sm font-medium mb-1 block">From Date</label>
+              <Input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="text-xs sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs sm:text-sm font-medium mb-1 block">To Date</label>
+              <Input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="text-xs sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs sm:text-sm font-medium mb-1 block">Search Note</label>
+              <Input
+                type="text"
+                placeholder="Search..."
+                value={searchNote}
+                onChange={(e) => setSearchNote(e.target.value)}
+                className="text-xs sm:text-sm"
+              />
+            </div>
+          </div>
+        )}
 
         <div className="text-xs sm:text-sm text-muted-foreground">
           Found {filteredTransactions.length} transaction{filteredTransactions.length !== 1 ? "s" : ""}
