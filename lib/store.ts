@@ -2,6 +2,7 @@ import type { User, MoneySource, Category, Transaction, TransferGroup } from "./
 import { supabase } from "./supabase"
 
 const LOCAL_USER_KEY = "money-tracker-user-id"
+const LEGACY_MIGRATION_KEY = "money-tracker-migrated-to"
 
 const toNumber = (value: number | string | null | undefined) => {
   if (value === null || value === undefined) return 0
@@ -51,6 +52,11 @@ type TransactionRow = {
   note: string | null
   include_in_cashflow: boolean | null
   created_at: number | string
+}
+
+export type LegacyMigrationResult = {
+  status: "migrated" | "skipped" | "error"
+  message?: string
 }
 
 
@@ -110,24 +116,83 @@ function mapTransaction(row: TransactionRow): Transaction {
   }
 }
 
-
-export async function initializeUser(): Promise<string | null> {
+export function getLegacyUserId(): string | null {
   if (typeof window === "undefined") return null
+  return localStorage.getItem(LOCAL_USER_KEY)
+}
 
-  let userId = localStorage.getItem(LOCAL_USER_KEY)
-  if (!userId) {
-    userId = crypto.randomUUID()
-    localStorage.setItem(LOCAL_USER_KEY, userId)
-  }
+function setLegacyUserId(userId: string) {
+  if (typeof window === "undefined") return
+  localStorage.setItem(LOCAL_USER_KEY, userId)
+}
 
+function setLegacyMigratedTo(userId: string) {
+  if (typeof window === "undefined") return
+  localStorage.setItem(LEGACY_MIGRATION_KEY, userId)
+}
+
+function getLegacyMigratedTo(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(LEGACY_MIGRATION_KEY)
+}
+
+export async function upsertAuthUser(userId: string, email?: string | null) {
   const { error } = await supabase
     .from("users")
-    .upsert({ id: userId, created_at: Date.now() }, { onConflict: "id" })
+    .upsert({ id: userId, email: email ?? null, created_at: Date.now() }, { onConflict: "id" })
   if (error) {
     throw new Error("Failed to initialize user")
   }
+}
 
-  return userId
+async function userHasData(userId: string) {
+  const { data, error } = await supabase.from("money_sources").select("id").eq("user_id", userId).limit(1)
+  if (error) return false
+  return (data ?? []).length > 0
+}
+
+export async function migrateLegacyUserData(
+  legacyUserId: string | null,
+  authUserId: string,
+): Promise<LegacyMigrationResult> {
+  if (!legacyUserId) return { status: "skipped", message: "No legacy user found." }
+  if (legacyUserId === authUserId) return { status: "skipped", message: "Legacy user already matches auth user." }
+  if (getLegacyMigratedTo() === authUserId) return { status: "skipped", message: "Legacy data already migrated." }
+
+  const legacyHasData = await userHasData(legacyUserId)
+  if (!legacyHasData) {
+    setLegacyMigratedTo(authUserId)
+    setLegacyUserId(authUserId)
+    return { status: "skipped", message: "Legacy user has no data." }
+  }
+
+  const authHasData = await userHasData(authUserId)
+  if (authHasData) {
+    return { status: "skipped", message: "Auth user already has data. Migration skipped to avoid conflicts." }
+  }
+
+  try {
+    const updates = [
+      supabase.from("money_sources").update({ user_id: authUserId }).eq("user_id", legacyUserId),
+      supabase.from("categories").update({ user_id: authUserId }).eq("user_id", legacyUserId),
+      supabase.from("transfer_groups").update({ user_id: authUserId }).eq("user_id", legacyUserId),
+      supabase.from("transactions").update({ user_id: authUserId }).eq("user_id", legacyUserId),
+    ]
+
+    const results = await Promise.all(updates)
+    const error = results.find((result) => result.error)?.error
+    if (error) throw error
+
+    setLegacyMigratedTo(authUserId)
+    setLegacyUserId(authUserId)
+
+    return { status: "migrated", message: "Legacy data migrated to your account." }
+  } catch (err) {
+    return {
+      status: "error",
+      message: err instanceof Error ? err.message : "Failed to migrate legacy data.",
+    }
+  }
 }
 
 export async function getUserById(userId: string): Promise<User | null> {

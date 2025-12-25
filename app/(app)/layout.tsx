@@ -5,9 +5,10 @@ import Link from "next/link"
 import { Home, Send, TrendingUp, LogOut } from "lucide-react"
 import { usePathname } from "next/navigation"
 import { UserProvider, useUser } from "@/components/user-provider"
+import { AuthPanel } from "@/components/auth-panel"
 
 function UserGate({ children }: { children: React.ReactNode }) {
-  const { loading, error } = useUser()
+  const { loading, error, userId } = useUser()
 
   if (loading) {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
@@ -25,11 +26,16 @@ function UserGate({ children }: { children: React.ReactNode }) {
     )
   }
 
+  if (!userId) {
+    return <AuthPanel />
+  }
+
   return <>{children}</>
 }
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { authEmail, signOut, migrationStatus, migrationMessage } = useUser()
 
   const navItems = [
     { href: "/dashboard", label: "Home", icon: Home },
@@ -40,12 +46,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => pathname === href
 
   return (
-    <UserProvider>
-      <UserGate>
-        <div className="flex flex-col h-screen bg-background overflow-hidden">
+    <div className="flex flex-col h-screen bg-background overflow-hidden">
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        <div className="p-4 sm:p-6 max-w-4xl mx-auto">{children}</div>
+        <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-4">
+          {migrationStatus === "migrating" && (
+            <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-xs text-muted-foreground">
+              Migrating legacy data to your account...
+            </div>
+          )}
+          {migrationStatus === "migrated" && (
+            <div className="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-xs text-muted-foreground">
+              {migrationMessage ?? "Legacy data migrated successfully."}
+            </div>
+          )}
+          {migrationStatus === "error" && (
+            <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
+              {migrationMessage ?? "Legacy data migration failed."}
+            </div>
+          )}
+          {children}
+        </div>
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 md:hidden bg-card border-t border-border backdrop-blur-xl">
@@ -89,9 +110,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-4 border-t border-border">
-          <button className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors text-sm">
+          <button
+            type="button"
+            onClick={signOut}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-muted-foreground hover:bg-muted transition-colors text-sm"
+          >
             <LogOut className="w-4 h-4" />
-            <span>Preferences</span>
+            <span>{authEmail ? `Sign out (${authEmail})` : "Sign out"}</span>
           </button>
         </div>
       </aside>
@@ -104,7 +129,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }
         }
       `}</style>
-        </div>
+    </div>
+  )
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <UserProvider>
+      <UserGate>
+        <AppShell>{children}</AppShell>
       </UserGate>
     </UserProvider>
   )
